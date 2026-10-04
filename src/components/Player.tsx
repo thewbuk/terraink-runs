@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Panel, { type Controls } from '@/components/Panel';
+import { useLang } from '@/lib/useLang';
 
 export const TEMPLATES = {
   film: () => import('@/templates/film'),
@@ -13,6 +14,7 @@ export type Template = keyof typeof TEMPLATES;
 
 export default function Player({ template }: { template: Template }) {
   const ref = useRef<HTMLDivElement>(null);
+  useLang();
   const [look, setLook] = useState(0);
   const [controls, setControls] = useState<Controls | null>(null);
   const live = useRef<Controls | null>(null), resume = useRef<ReturnType<Controls['get']> | null>(null);

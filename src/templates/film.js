@@ -23,11 +23,11 @@ function draw(root, signal, resume, embed, scope) {
   if (!HR) ZC[0] = C.moss; // no heart-rate data: one colour
 
   /* landmark the gain covers a round number of times (at most 5), else the tallest it covers once */
-  const LANDMARKS = [[96, 'Big Ben', 'Big Ben', 0], [330, 'the Eiffel Tower', 'wieża Eiffla', 0], [1085, 'Snowdon', 'Snowdon', 1], [1345, 'Ben Nevis', 'Ben Nevis', 1], [2499, 'Rysy', 'Rysy', 1], [4808, 'Mont Blanc', 'Mont Blanc', 1], [8849, 'Everest', 'Everest', 1]];
+  const LANDMARKS = [[96, 'Big Ben', 'Big Ben', 2], [330, 'the Eiffel Tower', 'wieża Eiffla', 0], [1085, 'Snowdon', 'Snowdon', 1], [1345, 'Ben Nevis', 'Ben Nevis', 1], [2499, 'Rysy', 'Rysy', 1], [4808, 'Mont Blanc', 'Mont Blanc', 1], [8849, 'Everest', 'Everest', 1]];
   const round = l => { const t = M.gain / l[0]; return Math.round(t) <= 5 && Math.abs(t - Math.round(t)) < 0.06; };
   const fits = LANDMARKS.filter(l => M.gain >= l[0] * 0.97), LM = fits.filter(round).pop() || fits.pop() || null, lmT = LM ? M.gain / LM[0] : 0, whole = LM && round(LM) ? Math.round(lmT) : 0;
   const FLAT = M.gain < 50, W = Kit.skyOf(M, embed), { splits: SPLITS, size: SK } = Kit.splits(RUN, F), UNITW = F.MI ? ['mile', 'miles'] : ['kilometre', 'kilometres'];
-  const TX = {
+  const TX = Kit.tr({
     en: () => { const times = whole ? ['', 'once', 'twice'][whole] || `${whole} times` : `${dec(lmT)} times`; return {
       tagline: FLAT ? `${dec(KMS)} ${F.DU}, almost flat.` : `${dec(KMS)} ${F.DU} and ${int(F.ht(M.gain))} ${F.HU} of climbing.`,
       wx: W ? [`${clock(0)} start`, W.temp != null && F.temp(W.temp), W.text, W.humidity != null && `${W.humidity}% humidity`, W.wind != null && `wind ${F.wind(W.wind)} ${W.windDir || ''}`.trim()].filter(Boolean).join(' · ') : `${clock(0)} start · ${clock(M.wall ?? DUR)} finish`,
@@ -46,7 +46,113 @@ function draw(root, signal, resume, embed, scope) {
       tiles: { steps: 'Steps', energy: 'Energy', still: 'Not moving', power: 'Average power', battery: 'Body Battery', load: 'Training load', effect: 'Training effect', cadence: 'Cadence' }, spm: 'spm',
       endl: `${F.MI ? `${dec(DIST / 1609.344, 2)} miles · ${dec(DIST / 1000, 2)} km` : `${dec(DIST / 1000, 2)} km · ${dec(DIST / 1609.344, 2)} miles`} · ${int(F.ht(M.gain))} ${F.HU} of climbing`,
       ends: [`Started ${clock(0)}, finished ${clock(M.wall ?? DUR)}`, HR && `${M.avgHr} bpm average`, M.steps && `${int(M.steps)} steps`].filter(Boolean).join(' · ') }; },
-  }.en();
+    pl: () => { const P = Kit.plural, n = Math.round(F.ht(M.gain)), N5 = ['', 'raz', 'dwa razy', 'trzy razy', 'cztery razy', 'pięć razy'];
+      const times = whole ? N5[whole] : `${dec(lmT)} raza`, UNITP = F.MI ? 'mila' : 'km', TEN = ({ 5: 'pięć', 10: 'dziesięć' })[SK];
+      return {
+      tagline: FLAT ? `${dec(KMS)} ${F.DU}, prawie płasko.` : `${dec(KMS)} ${F.DU} i ${int(F.ht(M.gain))} ${F.HU} w górę.`,
+      wx: W ? [`start ${clock(0)}`, W.temp != null && F.temp(W.temp), Kit.wxText(W.text), W.humidity != null && `wilgotność ${W.humidity}%`, W.wind != null && `wiatr ${F.wind(W.wind)} ${Kit.wxDir(W.windDir) || ''}`.trim()].filter(Boolean).join(' · ') : `start ${clock(0)} · meta ${clock(M.wall ?? DUR)}`,
+      legend: 'postój 90 s lub dłużej', elevation: 'WYSOKOŚĆ', zone: 'Strefa', chapters: ['Intro', 'Trasa', 'Góra', 'Serce', 'Dzień', 'Meta'],
+      stats: ['Czas', 'Godzina', 'W górę', 'Tętno', 'Wysokość', 'Tempo'],
+      climbEyebrow: 'Podejścia', climbWords: [F.MI ? P(n, { one: 'stopa', few: 'stopy', many: 'stóp', other: 'stopy' }) : P(n, { one: 'metr', few: 'metry', many: 'metrów', other: 'metra' }), 'w górę.'], lmCap: LM ? `${LM[2]}, ${int(F.ht(LM[0]))} ${F.HU} · ${times}` : '',
+      climbBody: M.hasAlt === false ? 'W tym pliku nie ma wysokości, więc nie ma podejść do pokazania.' : FLAT ? `Między ${int(F.ht(M.minAlt))} ${F.HU} a ${int(F.ht(M.maxAlt))} ${F.HU}: płasko jak stół.`
+        : `Od ${int(F.ht(M.minAlt))} ${F.HU} w górę do ${int(F.ht(M.maxAlt))} ${F.HU}${M.highName ? ' na ' + M.highName : ''}.` + (LM ? ` W pionie: ${LM[2]}, ${times}.` : ''),
+      low: 'Najniższy punkt', big: 'Największe podejście', bigSub: (km, from) => `${km} ${F.DU}, od ${from}. ${UNITP}`,
+      heartEyebrow: 'Serce', heartWords: [P(M.beats || 0, { one: 'uderzenie', few: 'uderzenia', many: 'uderzeń', other: 'uderzenia' }), 'serca.'], heartBody: (pct, z) => `Średnio ${M.avgHr} ud./min przez ${F.dur(DUR)}, z czego ${pct}% w strefie ${z}.`,
+      noHrWords: ['Bez', 'tętna.'], noHr: 'W tym pliku nie ma danych o tętnie, więc trasa ma jeden kolor.',
+      dayEyebrow: 'Dzień', dayWords: SK === 1 ? (F.MI ? ['Mila', 'po', 'mili.'] : ['Kilometr', 'po', 'kilometrze.']) : ['Co', TEN || String(SK), F.MI ? 'mil.' : 'kilometrów.'],
+      dayBody: o => `${o.first ? 'Najszybciej od razu na starcie:' : 'Najszybciej:'} ${o.fast} na ${F.MI ? 'milę' : 'km'}. Najwolniej: ${o.slow}${o.up >= 20 ? `, na ${int(F.ht(o.up))} ${F.HU} podejścia` : ''}${o.next ? `, a zaraz potem znów ${o.next}.` : '.'}`,
+      fastest: 'NAJSZYBCIEJ', slowest: 'NAJWOLNIEJ', hotSize: 11, hotGap: '.06em',
+      dayCap: (SK === 1 ? `TEMPO NA ${F.MI ? 'KAŻDEJ MILI' : 'KAŻDYM KM'}` : `TEMPO NA ${F.MI ? 'MILĘ' : 'KM'} CO ${SK} ${F.MI ? 'MIL' : 'KM'}`) + (HR ? ' · KOLOR TO ŚREDNIA STREFA TĘTNA' : ''),
+      tiles: { steps: 'Kroki', energy: 'Energia', still: 'Postoje', power: 'Średnia moc', battery: 'Body Battery', load: 'Obciążenie', effect: 'Efekt treningowy', cadence: 'Kadencja' }, spm: 'kr./min',
+      endl: `${F.MI ? `${dec(DIST / 1609.344, 2)} mili · ${dec(DIST / 1000, 2)} km` : `${dec(DIST / 1000, 2)} km · ${dec(DIST / 1609.344, 2)} mili`} · ${int(F.ht(M.gain))} ${F.HU} w górę`,
+      ends: [`Start ${clock(0)}, meta ${clock(M.wall ?? DUR)}`, HR && `średnio ${M.avgHr} ud./min`, M.steps && `${int(M.steps)} ${P(M.steps, { one: 'krok', few: 'kroki', many: 'kroków', other: 'kroku' })}`].filter(Boolean).join(' · ') }; },
+    de: () => { const N5 = ['', 'einmal', 'zweimal', 'dreimal', 'viermal', 'fünfmal'], times = whole ? N5[whole] : `${dec(lmT)}-mal`, MI = F.MI, mi = dec(DIST / 1609.344, 2), km2 = dec(DIST / 1000, 2);
+      const nm = LM && { 96: 'Big Ben', 330: 'Eiffelturm', 1085: 'Snowdon', 1345: 'Ben Nevis', 2499: 'Rysy', 4808: 'Mont Blanc', 8849: 'Everest' }[LM[0]];
+      return {
+      tagline: FLAT ? `${dec(KMS)} ${F.DU}, fast flach.` : `${dec(KMS)} ${F.DU} und ${int(F.ht(M.gain))} ${F.HU} bergauf.`,
+      wx: W ? [`Start ${clock(0)}`, W.temp != null && F.temp(W.temp), Kit.wxText(W.text), W.humidity != null && `${W.humidity} % Luftfeuchte`, W.wind != null && `Wind ${F.wind(W.wind)} ${Kit.wxDir(W.windDir) || ''}`.trim()].filter(Boolean).join(' · ') : `Start ${clock(0)} · Ziel ${clock(M.wall ?? DUR)}`,
+      legend: 'Pause ab 90 s', elevation: 'HÖHE', zone: 'Zone', chapters: ['Intro', 'Lauf', 'Anstieg', 'Herz', 'Tag', 'Ende'],
+      stats: ['Zeit', 'Uhrzeit', 'Aufstieg', 'Herzfrequenz', 'Höhe', 'Pace'],
+      climbEyebrow: 'Der Anstieg', climbWords: MI ? ['Fuß', 'bergauf.'] : ['Höhenmeter.'], lmCap: LM ? `${nm}, ${int(F.ht(LM[0]))} ${F.HU} · ${times}` : '',
+      climbBody: M.hasAlt === false ? 'Diese Datei hat keine Höhendaten, also gibt es keinen Anstieg zu zeigen.' : FLAT ? `Zwischen ${int(F.ht(M.minAlt))} ${F.HU} und ${int(F.ht(M.maxAlt))} ${F.HU}: flacher wird ein Lauf kaum.`
+        : `Von ${int(F.ht(M.minAlt))} ${F.HU} hinauf auf ${int(F.ht(M.maxAlt))} ${F.HU}${M.highName ? ' am ' + M.highName : ''}.` + (LM ? ` Übereinander gestapelt: ${times} ${nm}.` : ''),
+      low: 'Tiefster Punkt', big: 'Größter Anstieg', bigSub: (km, from) => `auf ${km} ${F.DU}, ab ${F.DU} ${from}`,
+      heartEyebrow: 'Das Herz', heartWords: ['Herzschläge.'], heartBody: (pct, z) => `Im Schnitt ${M.avgHr} ${BPM} über ${F.dur(DUR)}, ${pct} % davon in Zone ${z}.`,
+      noHrWords: ['Keine', 'Herzfrequenz.'], noHr: 'Diese Datei hat keine Herzfrequenzdaten, deshalb ist die Strecke einfarbig.',
+      dayEyebrow: 'Der Tag', dayWords: SK === 1 ? (MI ? ['Meile', 'für', 'Meile.'] : ['Kilometer', 'für', 'Kilometer.']) : ['Je', String(SK), MI ? 'Meilen.' : 'Kilometer.'],
+      dayBody: o => `${o.first ? 'Am schnellsten gleich zu Beginn mit' : 'Am schnellsten mit'} ${o.fast} pro ${MI ? 'Meile' : 'km'}. Am langsamsten mit ${o.slow}${o.up >= 20 ? `, bei ${int(F.ht(o.up))} ${F.HU} Anstieg` : ''}${o.next ? `, dann sofort wieder ${o.next}.` : '.'}`,
+      fastest: 'SCHNELLSTE', slowest: 'LANGSAMSTE', hotSize: 11, hotGap: '.06em',
+      dayCap: `PACE PRO ${MI ? 'MEILE' : 'KM'}${SK === 1 ? '' : ` JE ${SK} ${MI ? 'MEILEN' : 'KM'}`}` + (HR ? ' · FARBE = DURCHSCHNITTLICHE HF-ZONE' : ''),
+      tiles: { steps: 'Schritte', energy: 'Energie', still: 'Stillstand', power: 'Ø Leistung', battery: 'Body Battery', load: 'Trainingsbelastung', effect: 'Trainingseffekt', cadence: 'Kadenz' }, spm: 'spm',
+      endl: `${MI ? `${mi} Meilen · ${km2} km` : `${km2} km · ${mi} Meilen`} · ${int(F.ht(M.gain))} ${F.HU} Aufstieg`,
+      ends: [`Start ${clock(0)}, Ziel ${clock(M.wall ?? DUR)}`, HR && `Ø ${M.avgHr} ${BPM}`, M.steps && `${int(M.steps)} Schritte`].filter(Boolean).join(' · ') }; },
+    es: () => { const P = Kit.plural, n = Math.round(F.ht(M.gain)), N5 = ['', 'una vez', 'dos veces', 'tres veces', 'cuatro veces', 'cinco veces'], times = whole ? N5[whole] : `${dec(lmT)} veces`;
+      const MI = F.MI, mi = dec(DIST / 1609.344, 2), km2 = dec(DIST / 1000, 2);
+      const nm = LM && { 96: 'el Big Ben', 330: 'la Torre Eiffel', 1085: 'el Snowdon', 1345: 'el Ben Nevis', 2499: 'el Rysy', 4808: 'el Mont Blanc', 8849: 'el Everest' }[LM[0]];
+      const de = nm && `de ${nm}`.replace(/^de el /, 'del '), cap = nm && nm.replace(/^(el|la) /, '');
+      return {
+      tagline: FLAT ? `${dec(KMS)} ${F.DU}, casi llano.` : `${dec(KMS)} ${F.DU} y ${int(F.ht(M.gain))} ${F.HU} de desnivel.`,
+      wx: W ? [`salida ${clock(0)}`, W.temp != null && F.temp(W.temp), Kit.wxText(W.text), W.humidity != null && `humedad ${W.humidity} %`, W.wind != null && `viento ${F.wind(W.wind)} ${Kit.wxDir(W.windDir) || ''}`.trim()].filter(Boolean).join(' · ') : `salida ${clock(0)} · llegada ${clock(M.wall ?? DUR)}`,
+      legend: 'parado 90 s o más', elevation: 'ALTITUD', zone: 'Zona', chapters: ['Intro', 'Carrera', 'Subida', 'Corazón', 'Día', 'Final'],
+      stats: ['Tiempo', 'Hora', 'Desnivel', 'Pulso', 'Altitud', 'Ritmo'],
+      climbEyebrow: 'La subida', climbWords: [MI ? P(n, { one: 'pie', other: 'pies' }) : P(n, { one: 'metro', other: 'metros' }), 'de', 'subida.'], lmCap: LM ? `${cap}, ${int(F.ht(LM[0]))} ${F.HU} · ${times}` : '',
+      climbBody: M.hasAlt === false ? 'Este archivo no tiene altitud, así que no hay subida que mostrar.' : FLAT ? `Entre ${int(F.ht(M.minAlt))} ${F.HU} y ${int(F.ht(M.maxAlt))} ${F.HU}: más llano, imposible.`
+        : `De ${int(F.ht(M.minAlt))} ${F.HU} hasta ${int(F.ht(M.maxAlt))} ${F.HU}${M.highName ? ' en ' + M.highName : ''}.` + (LM ? (whole === 1 ? ` Equivale a la altura ${de}.` : ` Equivale a ${times} la altura ${de}.`) : ''),
+      low: 'Punto más bajo', big: 'Mayor subida', bigSub: (km, from) => `en ${km} ${F.DU}, desde el ${F.DU} ${from}`,
+      heartEyebrow: 'El corazón', heartWords: ['latidos.'], heartBody: (pct, z) => `${M.avgHr} ${BPM} de media durante ${F.dur(DUR)}, el ${pct} % en zona ${z}.`,
+      noHrWords: ['Sin', 'pulso.'], noHr: 'Este archivo no tiene datos de pulso, así que el recorrido va en un solo color.',
+      dayEyebrow: 'El día', dayWords: SK === 1 ? (MI ? ['Milla', 'a', 'milla.'] : ['Kilómetro', 'a', 'kilómetro.']) : ['Cada', String(SK), MI ? 'millas.' : 'kilómetros.'],
+      dayBody: o => `${o.first ? 'Lo más rápido, nada más salir:' : 'Lo más rápido:'} ${o.fast} por ${MI ? 'milla' : 'km'}. Lo más lento: ${o.slow}${o.up >= 20 ? `, con ${int(F.ht(o.up))} ${F.HU} de subida` : ''}${o.next ? `, y enseguida de vuelta a ${o.next}.` : '.'}`,
+      fastest: 'MÁS RÁPIDO', slowest: 'MÁS LENTO', hotSize: 11, hotGap: '.06em',
+      dayCap: `RITMO POR ${MI ? 'MILLA' : 'KM'}${SK === 1 ? '' : ` CADA ${SK} ${MI ? 'MILLAS' : 'KM'}`}` + (HR ? ' · EL COLOR ES LA ZONA DE PULSO MEDIA' : ''),
+      tiles: { steps: 'Pasos', energy: 'Energía', still: 'Parado', power: 'Potencia media', battery: 'Body Battery', load: 'Carga', effect: 'Efecto de entreno', cadence: 'Cadencia' }, spm: 'pasos/min',
+      endl: `${MI ? `${mi} millas · ${km2} km` : `${km2} km · ${mi} millas`} · ${int(F.ht(M.gain))} ${F.HU} de desnivel`,
+      ends: [`Salida ${clock(0)}, llegada ${clock(M.wall ?? DUR)}`, HR && `${M.avgHr} ${BPM} de media`, M.steps && `${int(M.steps)} pasos`].filter(Boolean).join(' · ') }; },
+    fr: () => { const P = Kit.plural, n = Math.round(F.ht(M.gain)), N5 = ['', 'une fois', 'deux fois', 'trois fois', 'quatre fois', 'cinq fois'], times = whole ? N5[whole] : `${dec(lmT)} fois`;
+      const MI = F.MI, mi = dec(DIST / 1609.344, 2), km2 = dec(DIST / 1000, 2);
+      const nm = LM && { 96: 'Big Ben', 330: 'la tour Eiffel', 1085: 'le Snowdon', 1345: 'le Ben Nevis', 2499: 'le Rysy', 4808: 'le mont Blanc', 8849: 'l’Everest' }[LM[0]];
+      const cap = nm && nm.replace(/^(le |la |l’)/, '').replace(/^./, c => c.toUpperCase());
+      return {
+      tagline: FLAT ? `${dec(KMS)} ${F.DU}, presque plat.` : `${dec(KMS)} ${F.DU} et ${int(F.ht(M.gain))} ${F.HU} de dénivelé.`,
+      wx: W ? [`départ ${clock(0)}`, W.temp != null && F.temp(W.temp), Kit.wxText(W.text), W.humidity != null && `humidité ${W.humidity} %`, W.wind != null && `vent ${F.wind(W.wind)} ${Kit.wxDir(W.windDir) || ''}`.trim()].filter(Boolean).join(' · ') : `départ ${clock(0)} · arrivée ${clock(M.wall ?? DUR)}`,
+      legend: 'arrêt de 90 s ou plus', elevation: 'ALTITUDE', zone: 'Zone', chapters: ['Intro', 'Course', 'Montée', 'Cœur', 'Journée', 'Fin'],
+      stats: ['Temps', 'Heure', 'Dénivelé', 'Cardio', 'Altitude', 'Allure'],
+      climbEyebrow: 'La montée', climbWords: [MI ? P(n, { one: 'pied', other: 'pieds' }) : P(n, { one: 'mètre', other: 'mètres' }), 'de', 'montée.'], lmCap: LM ? `${cap}, ${int(F.ht(LM[0]))} ${F.HU} · ${times}` : '',
+      climbBody: M.hasAlt === false ? 'Ce fichier n’a pas d’altitude, il n’y a donc pas de montée à montrer.' : FLAT ? `Entre ${int(F.ht(M.minAlt))} ${F.HU} et ${int(F.ht(M.maxAlt))} ${F.HU} : difficile de faire plus plat.`
+        : `De ${int(F.ht(M.minAlt))} ${F.HU} jusqu’à ${int(F.ht(M.maxAlt))} ${F.HU}${M.highName ? ' sur ' + M.highName : ''}.` + (LM ? (whole === 1 ? ` Autant que ${nm}.` : ` Empilé, cela fait ${times} ${nm}.`) : ''),
+      low: 'Point le plus bas', big: 'Plus grosse montée', bigSub: (km, from) => `sur ${km} ${F.DU}, dès le ${F.DU} ${from}`,
+      heartEyebrow: 'Le cœur', heartWords: ['battements.'], heartBody: (pct, z) => `${M.avgHr} ${BPM} en moyenne pendant ${F.dur(DUR)}, dont ${pct} % en zone ${z}.`,
+      noHrWords: ['Pas', 'de', 'cardio.'], noHr: 'Ce fichier n’a pas de données cardio, le tracé est donc d’une seule couleur.',
+      dayEyebrow: 'La journée', dayWords: SK === 1 ? (MI ? ['Mile', 'après', 'mile.'] : ['Kilomètre', 'après', 'kilomètre.']) : ['Par', 'tranches', 'de', String(SK), MI ? 'miles.' : 'km.'],
+      dayBody: o => `${o.first ? 'Le plus rapide dès le départ :' : 'Le plus rapide :'} ${o.fast} au ${MI ? 'mile' : 'km'}. Le plus lent : ${o.slow}${o.up >= 20 ? `, avec ${int(F.ht(o.up))} ${F.HU} de montée` : ''}${o.next ? `, puis aussitôt retour à ${o.next}.` : '.'}`,
+      fastest: 'PLUS RAPIDE', slowest: 'PLUS LENT', hotSize: 11, hotGap: '.06em',
+      dayCap: `ALLURE AU ${MI ? 'MILE' : 'KM'}${SK === 1 ? '' : ` PAR TRANCHE DE ${SK} ${MI ? 'MILES' : 'KM'}`}` + (HR ? ' · LA COULEUR EST LA ZONE CARDIO MOYENNE' : ''),
+      tiles: { steps: 'Pas', energy: 'Énergie', still: 'À l’arrêt', power: 'Puissance moy.', battery: 'Body Battery', load: 'Charge', effect: 'Effet d’entraînement', cadence: 'Cadence' }, spm: 'pas/min',
+      endl: `${MI ? `${mi} miles · ${km2} km` : `${km2} km · ${mi} miles`} · ${int(F.ht(M.gain))} ${F.HU} de dénivelé`,
+      ends: [`Départ ${clock(0)}, arrivée ${clock(M.wall ?? DUR)}`, HR && `${M.avgHr} ${BPM} en moyenne`, M.steps && `${int(M.steps)} pas`].filter(Boolean).join(' · ') }; },
+    it: () => { const P = Kit.plural, n = Math.round(F.ht(M.gain)), N5 = ['', 'una volta', 'due volte', 'tre volte', 'quattro volte', 'cinque volte'], times = whole ? N5[whole] : `${dec(lmT)} volte`;
+      const MI = F.MI, mi = dec(DIST / 1609.344, 2), km2 = dec(DIST / 1000, 2);
+      const nm = LM && { 96: 'il Big Ben', 330: 'la Torre Eiffel', 1085: 'lo Snowdon', 1345: 'il Ben Nevis', 2499: 'il Rysy', 4808: 'il Monte Bianco', 8849: 'l’Everest' }[LM[0]];
+      const cap = nm && nm.replace(/^(il |lo |la |l’)/, '');
+      return {
+      tagline: FLAT ? `${dec(KMS)} ${F.DU}, quasi in piano.` : `${dec(KMS)} ${F.DU} e ${int(F.ht(M.gain))} ${F.HU} di dislivello.`,
+      wx: W ? [`partenza ${clock(0)}`, W.temp != null && F.temp(W.temp), Kit.wxText(W.text), W.humidity != null && `umidità ${W.humidity}%`, W.wind != null && `vento ${F.wind(W.wind)} ${Kit.wxDir(W.windDir) || ''}`.trim()].filter(Boolean).join(' · ') : `partenza ${clock(0)} · arrivo ${clock(M.wall ?? DUR)}`,
+      legend: 'sosta di 90 s o più', elevation: 'ALTITUDINE', zone: 'Zona', chapters: ['Intro', 'Corsa', 'Salita', 'Cuore', 'Giornata', 'Fine'],
+      stats: ['Tempo', 'Ora', 'Dislivello', 'Battito', 'Altitudine', 'Passo'],
+      climbEyebrow: 'La salita', climbWords: [MI ? P(n, { one: 'piede', other: 'piedi' }) : P(n, { one: 'metro', other: 'metri' }), 'di', 'salita.'], lmCap: LM ? `${cap}, ${int(F.ht(LM[0]))} ${F.HU} · ${times}` : '',
+      climbBody: M.hasAlt === false ? 'Questo file non ha l’altitudine, quindi non c’è salita da mostrare.' : FLAT ? `Tra ${int(F.ht(M.minAlt))} ${F.HU} e ${int(F.ht(M.maxAlt))} ${F.HU}: più piatta di così non si può.`
+        : `Da ${int(F.ht(M.minAlt))} ${F.HU} fino a ${int(F.ht(M.maxAlt))} ${F.HU}${M.highName ? ' su ' + M.highName : ''}.` + (LM ? (whole === 1 ? ` Quanto ${nm}.` : ` In verticale: ${times} ${nm}.`) : ''),
+      low: 'Punto più basso', big: 'Salita più lunga', bigSub: (km, from) => `in ${km} ${F.DU}, dal ${F.DU} ${from}`,
+      heartEyebrow: 'Il cuore', heartWords: ['battiti.'], heartBody: (pct, z) => `${M.avgHr} ${BPM} di media per ${F.dur(DUR)}, il ${pct}% in zona ${z}.`,
+      noHrWords: ['Niente', 'battito.'], noHr: 'Questo file non ha dati sul battito, quindi il percorso è di un solo colore.',
+      dayEyebrow: 'La giornata', dayWords: SK === 1 ? (MI ? ['Miglio', 'dopo', 'miglio.'] : ['Chilometro', 'dopo', 'chilometro.']) : ['Ogni', String(SK), MI ? 'miglia.' : 'chilometri.'],
+      dayBody: o => `${o.first ? 'Il più veloce subito in partenza:' : 'Il più veloce:'} ${o.fast} al ${MI ? 'miglio' : 'km'}. Il più lento: ${o.slow}${o.up >= 20 ? `, con ${int(F.ht(o.up))} ${F.HU} di salita` : ''}${o.next ? `, poi subito di nuovo a ${o.next}.` : '.'}`,
+      fastest: 'PIÙ VELOCE', slowest: 'PIÙ LENTO', hotSize: 11, hotGap: '.06em',
+      dayCap: `PASSO AL ${MI ? 'MIGLIO' : 'KM'}${SK === 1 ? '' : ` OGNI ${SK} ${MI ? 'MIGLIA' : 'KM'}`}` + (HR ? ' · IL COLORE È LA ZONA CARDIACA MEDIA' : ''),
+      tiles: { steps: 'Passi', energy: 'Energia', still: 'Fermo', power: 'Potenza media', battery: 'Body Battery', load: 'Carico', effect: 'Effetto allenante', cadence: 'Cadenza' }, spm: 'passi/min',
+      endl: `${MI ? `${mi} miglia · ${km2} km` : `${km2} km · ${mi} miglia`} · ${int(F.ht(M.gain))} ${F.HU} di dislivello`,
+      ends: [`Partenza ${clock(0)}, arrivo ${clock(M.wall ?? DUR)}`, HR && `${M.avgHr} ${BPM} di media`, M.steps && `${int(M.steps)} passi`].filter(Boolean).join(' · ') }; },
+  })();
 
   const stage = root.querySelector('#stage');
   const add = el => (stage.appendChild(el), el);
@@ -119,6 +225,7 @@ function draw(root, signal, resume, embed, scope) {
   const iAt = d => { let i = 0; while (i < N - 1 && T.d[i] < d) i++; return i; };
   const iHigh = T.a.indexOf(Math.max(...T.a)), iLow = T.a.indexOf(Math.min(...T.a)), BIG = RUN.climb.up >= 30, iC0 = BIG ? iAt(RUN.climb.d0) : 0, iC1 = BIG ? iAt(RUN.climb.d1) : 0;
   const PEAK = 'M0 150 L58 66 L82 92 L128 8 L160 58 L182 40 L260 150', SNOW = 'M112 38 L122 50 L130 40 L140 52 L146 36', TOWER = 'M66 150 L118 14 L142 14 L194 150 M88 102 H172 M102 64 H158 M130 14 V0';
+  const CLOCK = 'M100 150 H160 M110 150 V64 M150 150 V64 M110 108 H150 M104 64 H156 V34 H104 Z M142 49 A12 12 0 1 0 118 49 A12 12 0 1 0 142 49 M130 49 V41 M130 49 L136 53 M110 34 V26 H150 V34 M110 26 L130 0 L150 26';
   const MARKS = LM ? Math.min(3, Math.max(1, Math.round(lmT))) : 0;
   const pin = (i, dy, size, fill, text) => h('g', { class: 'cpin', opacity: 0 }, h('circle', { cx: CP[i][0], cy: CP[i][1], r: 7, fill: C.ink, stroke: C.paper, 'stroke-width': 3 }),
     h('text', { class: HALO, x: Math.min(1430, Math.max(170, CP[i][0])), y: CP[i][1] + dy, 'text-anchor': 'middle', 'font-size': size, 'font-weight': size > 18 ? 600 : 400, fill, 'stroke-width': 7, text }));
@@ -134,8 +241,8 @@ function draw(root, signal, resume, embed, scope) {
       h('text', { class: HALO, x: CP[iC1][0] - 16, y: CP[iC1][1] - 8, 'text-anchor': 'end', 'font-size': 20, 'font-weight': 600, fill: C.signal, 'stroke-width': 7, text: `${TX.big} · +${int(F.ht(RUN.climb.up))} ${F.HU}` }),
       h('text', { class: HALO, x: CP[iC1][0] - 16, y: CP[iC1][1] + 14, 'text-anchor': 'end', 'font-size': 15, fill: C.soft, 'stroke-width': 7, text: TX.bigSub(dec((RUN.climb.d1 - RUN.climb.d0) / F.U), Math.round(RUN.climb.d0 / F.U)) })) : null,
     h('g', { id: 'lms', transform: `translate(${1530 - MARKS * 190} 96)` },
-      ...Array.from({ length: MARKS }, (_, k) => h('g', { transform: `translate(${k * 190} 0) scale(.68)` }, h('path', { class: 'lm', d: LM[3] ? PEAK : TOWER, fill: 'none', stroke: C.paper, 'stroke-width': 3.4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }),
-        LM[3] ? h('path', { class: 'lm', d: SNOW, fill: 'none', stroke: C.paper, 'stroke-width': 2.4, 'stroke-linejoin': 'round' }) : null)),
+      ...Array.from({ length: MARKS }, (_, k) => h('g', { transform: `translate(${k * 190} 0) scale(.68)` }, h('path', { class: 'lm', d: [TOWER, PEAK, CLOCK][LM[3]], fill: 'none', stroke: C.paper, 'stroke-width': 3.4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }),
+        LM[3] === 1 ? h('path', { class: 'lm', d: SNOW, fill: 'none', stroke: C.paper, 'stroke-width': 2.4, 'stroke-linejoin': 'round' }) : null)),
       h('text', { class: 'lmT', x: MARKS * 95 - 12, y: 146, 'text-anchor': 'middle', 'font-size': 17, fill: C.soft, opacity: 0, text: TX.lmCap }))));
   const cpins = [...climb.querySelectorAll('.cpin')];
 

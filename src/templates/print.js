@@ -15,9 +15,19 @@ function draw(root, signal, resume, embed, scope) {
   const { h, poly } = Kit, G = Kit.wear(root, 'midnight_blue', 'ink', embed?.look).L;
   const RUN = Runs.current('print'), M = RUN.meta, T = RUN.track, N = T.x.length, DIST = M.distance, DUR = M.elapsed, KMS = DIST / Kit.unitM(), HR = M.hasHr;
   const F = Kit.fmt(RUN), { hms, pace, int, dec, clock, zone } = F, WD = Kit.words(RUN, F), UI = WD.ui;
-  const TX =
-      { stats: ['Distance', 'Time', 'Climb', 'Average pace'], foot: `started ${clock(0)} · finished ${clock(M.wall ?? DUR)}`,
-        routes: { line: 'Line', zones: 'Zones' }, route: 'Route', save: 'Save PNG', again: 'Replay', saved: f => `Saved ${f}` };
+  const TX = Kit.tr({
+    en: { stats: ['Distance', 'Time', 'Climb', 'Average pace'], foot: `started ${clock(0)} · finished ${clock(M.wall ?? DUR)}`, avgHr: `${M.avgHr} ${WD.BPM} avg`,
+      routes: { line: 'Line', zones: 'Zones' }, route: 'Route', save: 'Save PNG', again: 'Replay', saved: f => `Saved ${f}` },
+    pl: { stats: ['Dystans', 'Czas', 'Przewyższenie', 'Średnie tempo'], foot: `start ${clock(0)} · meta ${clock(M.wall ?? DUR)}`, avgHr: `śr. tętno ${M.avgHr} ${WD.BPM}`,
+      routes: { line: 'Linia', zones: 'Strefy' }, route: 'Trasa', save: 'Zapisz PNG', again: 'Powtórz', saved: f => `Zapisano ${f}` },
+    de: { stats: ['Distanz', 'Zeit', 'Anstieg', 'Ø Pace'], foot: `Start ${clock(0)} · Ziel ${clock(M.wall ?? DUR)}`, avgHr: `Ø ${M.avgHr} ${WD.BPM}`,
+      routes: { line: 'Linie', zones: 'Zonen' }, route: 'Strecke', save: 'PNG speichern', again: 'Erneut', saved: f => `${f} gespeichert` },
+    es: { stats: ['Distancia', 'Tiempo', 'Desnivel', 'Ritmo medio'], foot: `salida ${clock(0)} · llegada ${clock(M.wall ?? DUR)}`, avgHr: `${M.avgHr} ${WD.BPM} de media`,
+      routes: { line: 'Línea', zones: 'Zonas' }, route: 'Ruta', save: 'Guardar PNG', again: 'Repetir', saved: f => `Guardado ${f}` },
+    fr: { stats: ['Distance', 'Temps', 'Dénivelé', 'Allure moy.'], foot: `départ ${clock(0)} · arrivée ${clock(M.wall ?? DUR)}`, avgHr: `${M.avgHr} ${WD.BPM} en moyenne`,
+      routes: { line: 'Ligne', zones: 'Zones' }, route: 'Tracé', save: 'Exporter PNG', again: 'Rejouer', saved: f => `${f} enregistré` },
+    it: { stats: ['Distanza', 'Tempo', 'Dislivello', 'Passo medio'], foot: `partenza ${clock(0)} · arrivo ${clock(M.wall ?? DUR)}`, avgHr: `${M.avgHr} ${WD.BPM} di media`,
+      routes: { line: 'Linea', zones: 'Zone' }, route: 'Percorso', save: 'Salva PNG', again: 'Ripeti', saved: f => `Salvato ${f}` } });
 
   const P = root.querySelector('#print');
   const SEGS = []; for (let i = 0, z = zone(T.h[0]), i0 = 0; i <= N; i++) { const zi = i < N ? zone(T.h[i]) : -1; if (zi !== z) { SEGS.push({ i0, i1: Math.min(N - 1, i), z }); i0 = i; z = zi; } }
@@ -66,7 +76,7 @@ function draw(root, signal, resume, embed, scope) {
         h('text', { x: cx, y: FY + 62, 'text-anchor': 'middle', 'font-size': 42, 'font-weight': 600, 'letter-spacing': '-.02em', fill: L.ink }, h('tspan', { class: 'fv', text: '0' }), unit ? h('tspan', { dx: 6, 'font-size': 17, 'font-weight': 400, 'letter-spacing': '0', fill: L.soft, text: unit }) : null))); });
     fvals = [...P.querySelectorAll('.fv')];
     P.append(h('text', { class: 'in', x: 120, y: 1560, 'font-size': 14, 'letter-spacing': '.12em', fill: L.soft, text: TX.foot.toUpperCase() }),
-      h('text', { class: 'in', x: 1080, y: 1560, 'text-anchor': 'end', 'font-size': 14, 'letter-spacing': '.12em', fill: L.soft, text: [WD.SPORT, HR && `${M.avgHr} ${WD.BPM} avg`].filter(Boolean).join(' · ').toUpperCase() }));
+      h('text', { class: 'in', x: 1080, y: 1560, 'text-anchor': 'end', 'font-size': 14, 'letter-spacing': '.12em', fill: L.soft, text: [WD.SPORT, HR && TX.avgHr].filter(Boolean).join(' · ').toUpperCase() }));
     return { glow, line, zoned };
   }
 
@@ -87,7 +97,7 @@ function draw(root, signal, resume, embed, scope) {
   async function savePng() {
     anim?.seek(anim.duration); await BM?.ready;
     const cv = await Kit.rasterize(P, 2400, 3200);
-    const file = `${WD.NAME.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'run'}-print-${G.key}.png`;
+    const file = `${WD.NAME.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ł/g, 'l').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'run'}-print-${G.key}.png`;
     cv.toBlob(b => { if (!b) return; Kit.download(b, file); st.set({ note: TX.saved(file) }); }, 'image/png');
   }
 

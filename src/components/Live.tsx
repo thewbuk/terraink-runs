@@ -5,6 +5,7 @@ import Image, { type StaticImageData } from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import * as Runs from '@/lib/runs';
 import { TEMPLATES, type Template } from '@/components/Player';
+import { useLang } from '@/lib/useLang';
 
 type Mounted = { destroy: () => void; controls: { play?: (p: boolean) => void; clock?: { get: () => number } } };
 
@@ -45,7 +46,7 @@ function step() {
 export default function Live({ template, still, alt = '', at, priority = false, className = '', stage = '' }: {
   template: Template; still?: { light: StaticImageData; dark: StaticImageData }; alt?: string; at?: number; priority?: boolean; className?: string; stage?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null), theme = useSiteTheme();
+  const ref = useRef<HTMLDivElement>(null), theme = useSiteTheme(), lang = useLang();
   const [live, setLive] = useState(false), t0 = useRef<number | undefined>(at);   // playback time, so a theme change resumes in place
   useEffect(() => {
     const host = ref.current, reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -77,7 +78,7 @@ export default function Live({ template, still, alt = '', at, priority = false, 
       ac.signal.addEventListener('abort', () => io.disconnect());
     });
     return () => { t0.current = time(); ac.abort(); clearTimeout(timer); cur?.ac.abort(); cur?.m.destroy(); host.replaceChildren(); setLive(false); };
-  }, [template, theme, still]);
+  }, [template, theme, still, lang]);
   return (
     <div className={`relative ${className}`}>
       {still && <Image src={still[theme]} alt={alt} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-500 ${live ? 'opacity-0' : ''}`} />}

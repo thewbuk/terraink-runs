@@ -15,9 +15,19 @@ function draw(root, signal, resume, embed, scope) {
   const RUN = Runs.current('poster'), M = RUN.meta, T = RUN.track, N = T.x.length, DIST = M.distance, DUR = M.elapsed, KMS = DIST / Kit.unitM(), HR = M.hasHr;
   const F = Kit.fmt(RUN), { hms, pace, int, dec, clock, zone } = F, WD = Kit.words(RUN, F), UI = WD.ui;
   if (!HR) ZC[0] = C.moss;
-  const TX =
-      { stats: ['Distance', 'Time', 'Climb', 'Average pace', 'Average heart rate', 'Steps', 'Energy'], elevation: 'ELEVATION', zones: 'TIME IN HEART-RATE ZONES', foot: `started ${clock(0)} · finished ${clock(M.wall ?? DUR)}`,
-        save: 'Save PNG', again: 'Replay', saved: f => `Saved ${f}` };
+  const TX = Kit.tr({
+    en: { stats: ['Distance', 'Time', 'Climb', 'Average pace', 'Average heart rate', 'Steps', 'Energy'], elevation: 'ELEVATION', zones: 'TIME IN HEART-RATE ZONES', foot: `started ${clock(0)} · finished ${clock(M.wall ?? DUR)}`,
+      save: 'Save PNG', again: 'Replay', saved: f => `Saved ${f}` },
+    pl: { stats: ['Dystans', 'Czas', 'Przewyższenie', 'Średnie tempo', 'Średnie tętno', 'Kroki', 'Energia'], elevation: 'PROFIL WYSOKOŚCI', zones: 'CZAS W STREFACH TĘTNA', foot: `start ${clock(0)} · meta ${clock(M.wall ?? DUR)}`,
+      save: 'Zapisz PNG', again: 'Powtórz', saved: f => `Zapisano ${f}` },
+    de: { stats: ['Distanz', 'Zeit', 'Anstieg', 'Ø Pace', 'Ø Herzfrequenz', 'Schritte', 'Energie'], elevation: 'HÖHENPROFIL', zones: 'ZEIT IN HERZFREQUENZZONEN', foot: `Start ${clock(0)} · Ziel ${clock(M.wall ?? DUR)}`,
+      save: 'PNG speichern', again: 'Erneut', saved: f => `${f} gespeichert` },
+    es: { stats: ['Distancia', 'Tiempo', 'Desnivel', 'Ritmo medio', 'FC media', 'Pasos', 'Energía'], elevation: 'PERFIL DE ELEVACIÓN', zones: 'TIEMPO EN ZONAS DE FC', foot: `salida ${clock(0)} · llegada ${clock(M.wall ?? DUR)}`,
+      save: 'Guardar PNG', again: 'Repetir', saved: f => `Guardado ${f}` },
+    fr: { stats: ['Distance', 'Temps', 'Dénivelé', 'Allure moy.', 'FC moyenne', 'Pas', 'Énergie'], elevation: 'PROFIL D’ALTITUDE', zones: 'TEMPS DANS LES ZONES DE FC', foot: `départ ${clock(0)} · arrivée ${clock(M.wall ?? DUR)}`,
+      save: 'Exporter PNG', again: 'Rejouer', saved: f => `${f} enregistré` },
+    it: { stats: ['Distanza', 'Tempo', 'Dislivello', 'Passo medio', 'FC media', 'Passi', 'Energia'], elevation: 'PROFILO ALTIMETRICO', zones: 'TEMPO NELLE ZONE DI FC', foot: `partenza ${clock(0)} · arrivo ${clock(M.wall ?? DUR)}`,
+      save: 'Salva PNG', again: 'Ripeti', saved: f => `Salvato ${f}` } });
 
   const P = root.querySelector('#poster');
   const SEGS = []; for (let i = 0, z = zone(T.h[0]), i0 = 0; i <= N; i++) { const zi = i < N ? zone(T.h[i]) : -1; if (zi !== z) { SEGS.push({ i0, i1: Math.min(N - 1, i), z }); i0 = i; z = zi; } }
@@ -85,7 +95,7 @@ function draw(root, signal, resume, embed, scope) {
   async function savePng() {
     anim?.seek(anim.duration); await BM?.ready;
     const cv = await Kit.rasterize(P, 2400, 3000);
-    const file = `${WD.NAME.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'run'}-poster.png`;
+    const file = `${WD.NAME.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ł/g, 'l').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'run'}-poster.png`;
     cv.toBlob(b => { if (!b) return; Kit.download(b, file); st.set({ note: TX.saved(file) }); }, 'image/png');
   }
 

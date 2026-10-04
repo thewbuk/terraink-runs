@@ -1,8 +1,7 @@
 /* Shared by every template: formatting, words, DOM builder, looks, weather, audio and transport. */
 import * as Runs from './runs';
 import * as Basemap from './basemap';
-
-const LOC = 'en-GB';
+import { lang, loc, plural, tr } from './lang';
 
 const NS = 'http://www.w3.org/2000/svg', HTML = new Set(['div', 'span', 'aside', 'section', 'i', 'b', 'p', 'h1', 'h2', 'h3', 'small', 'em', 'time', 'a', 'button', 'label', 'input']);
 export const FRAME = 'relative flex-none overflow-hidden rounded-[6px] shadow-[0_24px_80px_#000c] w-(--w) h-(--h)';
@@ -35,7 +34,7 @@ export function fmt(RUN) {
   const M = RUN.meta, pad = n => String(n).padStart(2, '0');
   const hms = s => { s = Math.round(s); return `${Math.floor(s / 3600)}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`; };
   const pace = s => { s = Math.round(s); return `${Math.floor(s / 60)}:${pad(s % 60)}`; };
-  const NF0 = new Intl.NumberFormat(LOC, { maximumFractionDigits: 0 }), NF1 = new Intl.NumberFormat(LOC, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const LOC = loc(), NF0 = new Intl.NumberFormat(LOC, { maximumFractionDigits: 0 }), NF1 = new Intl.NumberFormat(LOC, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const int = v => NF0.format(Math.round(v)), dec = (v, n = 1) => (n === 1 ? NF1.format(v) : v.toLocaleString(LOC, { minimumFractionDigits: n, maximumFractionDigits: n }));
   const START = new Date(M.startLocal), startSec = START.getHours() * 3600 + START.getMinutes() * 60 + START.getSeconds();
   const clock = s => { const c = startSec + s; return `${pad(Math.floor(c / 3600) % 24)}:${pad(Math.floor(c % 3600 / 60))}`; };
@@ -50,7 +49,19 @@ export function fmt(RUN) {
 
 /* Weather is a pure function of timeline time, so scrubbing and export draw the same frame. */
 export const sky = W => (!W ? null : W.snow ? 'snow' : W.rain ? 'rain' : /cloud|overcast|fog|mist|grey|gray/i.test(W.text || '') ? 'cloud' : 'clear');
-export const weatherLine = (W, F) => (W ? [W.temp != null && F.temp(W.temp), W.text].filter(Boolean).join(' · ') : '');
+const WX_KEYS = ['clear', 'sunny', 'partly cloudy', 'cloudy', 'low cloud', 'overcast', 'fog', 'mist', 'drizzle', 'light rain', 'rain', 'heavy rain', 'showers', 'snow', 'light snow', 'sleet', 'thunderstorm', 'windy'];
+const WX = {
+  pl: ['bezchmurnie', 'słonecznie', 'częściowe zachmurzenie', 'pochmurno', 'niskie chmury', 'zachmurzenie całkowite', 'mgła', 'mgła', 'mżawka', 'lekki deszcz', 'deszcz', 'ulewa', 'przelotne opady', 'śnieg', 'lekki śnieg', 'deszcz ze śniegiem', 'burza', 'wietrznie'],
+  de: ['klar', 'sonnig', 'teils bewölkt', 'bewölkt', 'tiefe Wolken', 'bedeckt', 'Nebel', 'Dunst', 'Nieselregen', 'leichter Regen', 'Regen', 'starker Regen', 'Schauer', 'Schnee', 'leichter Schnee', 'Schneeregen', 'Gewitter', 'windig'],
+  es: ['despejado', 'soleado', 'parcialmente nublado', 'nublado', 'nubes bajas', 'cubierto', 'niebla', 'neblina', 'llovizna', 'lluvia ligera', 'lluvia', 'lluvia fuerte', 'chubascos', 'nieve', 'nieve ligera', 'aguanieve', 'tormenta', 'ventoso'],
+  fr: ['dégagé', 'ensoleillé', 'partiellement nuageux', 'nuageux', 'nuages bas', 'couvert', 'brouillard', 'brume', 'bruine', 'pluie légère', 'pluie', 'forte pluie', 'averses', 'neige', 'neige légère', 'neige fondue', 'orage', 'venteux'],
+  it: ['sereno', 'soleggiato', 'parzialmente nuvoloso', 'nuvoloso', 'nubi basse', 'coperto', 'nebbia', 'foschia', 'pioviggine', 'pioggia leggera', 'pioggia', 'pioggia forte', 'rovesci', 'neve', 'neve leggera', 'nevischio', 'temporale', 'ventoso'],
+};
+const DIR_PL = { N: 'pn.', S: 'pd.', E: 'wsch.', W: 'zach.', NE: 'pn.-wsch.', NW: 'pn.-zach.', SE: 'pd.-wsch.', SW: 'pd.-zach.' };
+const DIR_SWAP = { de: { E: 'O' }, es: { W: 'O' }, fr: { W: 'O' }, it: { W: 'O' } };
+export const wxText = t => { const l = lang(), k = WX_KEYS.indexOf(String(t || '').toLowerCase()); return t && WX[l] && k >= 0 ? WX[l][k] : t; };
+export const wxDir = d => { const l = lang(); if (!d || l === 'en') return d; if (l === 'pl') return DIR_PL[d] ?? DIR_PL[d.slice(-2)] ?? d; return d.replace(/[NSEW]/g, c => DIR_SWAP[l]?.[c] ?? c); };
+export const weatherLine = (W, F) => (W ? [W.temp != null && F.temp(W.temp), wxText(W.text)].filter(Boolean).join(' · ') : '');
 const wrap = (v, n) => ((v % n) + n) % n;
 // a soft radial disc drawn once and then stamped with drawImage, instead of a gradient per particle per frame
 function sprite(stops, size = 128) {
@@ -176,25 +187,102 @@ export function splits(RUN, F) {
   return { splits: out.length ? out : RUN.splits, size };
 }
 
+const NAMES = {
+  en: (kind, part) => `${['Morning', 'Midday', 'Afternoon', 'Evening', 'Night'][part]} ${{ run: 'run', trail: 'trail run', ride: 'ride', walk: 'walk', hike: 'hike' }[kind]}`,
+  pl: (kind, part) => `${{ run: 'Bieg', trail: 'Bieg terenowy', ride: 'Jazda na rowerze', walk: 'Spacer', hike: 'Wędrówka' }[kind]} ${(kind === 'ride' || kind === 'hike'
+    ? ['poranna', 'południowa', 'popołudniowa', 'wieczorna', 'nocna'] : ['poranny', 'południowy', 'popołudniowy', 'wieczorny', 'nocny'])[part]}`,
+  de: (kind, part) => `${['Morgen', 'Mittags', 'Nachmittags', 'Abend', 'Nacht'][part]}${{ run: 'lauf', trail: 'trail', ride: 'fahrt', walk: 'spaziergang', hike: 'wanderung' }[kind]}`,
+  es: (kind, part) => `${{ run: 'Carrera', trail: 'Carrera de montaña', ride: 'Salida en bici', walk: 'Paseo', hike: 'Excursión' }[kind]} ${['matutina', 'de mediodía', 'de tarde', 'vespertina', 'nocturna'][part]}`
+    .replace(/^(Paseo) matutina/, '$1 matutino').replace(/^(Paseo) vespertina/, '$1 vespertino').replace(/^(Paseo) nocturna/, '$1 nocturno'),
+  fr: (kind, part) => `${{ run: 'Course', trail: 'Trail', ride: 'Sortie vélo', walk: 'Marche', hike: 'Randonnée' }[kind]} ${['du matin', 'de midi', 'de l’après-midi', 'du soir', 'de nuit'][part]}`,
+  it: (kind, part) => `${{ run: 'Corsa', trail: 'Trail', ride: 'Giro in bici', walk: 'Camminata', hike: 'Escursione' }[kind]} ${['mattutina', 'di mezzogiorno', 'pomeridiana', 'serale', 'notturna'][part]}`
+    .replace(/^(Trail|Giro in bici) (mattutin|pomeridian|notturn)a$/, '$1 $2o'),
+};
+const SPORTS = {
+  en: { run: 'Run', trail: 'Trail run', ride: 'Ride', walk: 'Walk', hike: 'Hike' }, pl: { run: 'Bieg', trail: 'Bieg terenowy', ride: 'Jazda na rowerze', walk: 'Spacer', hike: 'Wędrówka' },
+  de: { run: 'Lauf', trail: 'Traillauf', ride: 'Radfahrt', walk: 'Spaziergang', hike: 'Wanderung' }, es: { run: 'Carrera', trail: 'Trail', ride: 'Bici', walk: 'Paseo', hike: 'Excursión' },
+  fr: { run: 'Course', trail: 'Trail', ride: 'Vélo', walk: 'Marche', hike: 'Randonnée' }, it: { run: 'Corsa', trail: 'Trail', ride: 'Bici', walk: 'Camminata', hike: 'Escursione' },
+};
+const RUN_WORDS = {
+  en: { bpm: 'bpm', high: 'Highest point', maxHr: 'Max heart rate', half: 'Half marathon', mar: 'Marathon', mi50: '50 miles', mi100: '100 miles', start: 'Start', startFinish: 'Start and finish', finish: 'Finish' },
+  pl: { bpm: 'ud./min', high: 'Najwyższy punkt', maxHr: 'Tętno maks.', half: 'Półmaraton', mar: 'Maraton', mi50: '50 mil', mi100: '100 mil', start: 'Start', startFinish: 'Start i meta', finish: 'Meta' },
+  de: { bpm: 'S/min', high: 'Höchster Punkt', maxHr: 'Max. Herzfrequenz', half: 'Halbmarathon', mar: 'Marathon', mi50: '50 Meilen', mi100: '100 Meilen', start: 'Start', startFinish: 'Start und Ziel', finish: 'Ziel' },
+  es: { bpm: 'ppm', high: 'Punto más alto', maxHr: 'FC máxima', half: 'Media maratón', mar: 'Maratón', mi50: '50 millas', mi100: '100 millas', start: 'Salida', startFinish: 'Salida y meta', finish: 'Meta' },
+  fr: { bpm: 'bpm', high: 'Point culminant', maxHr: 'FC max', half: 'Semi-marathon', mar: 'Marathon', mi50: '50 miles', mi100: '100 miles', start: 'Départ', startFinish: 'Départ et arrivée', finish: 'Arrivée' },
+  it: { bpm: 'bpm', high: 'Punto più alto', maxHr: 'FC massima', half: 'Mezza maratona', mar: 'Maratona', mi50: '50 miglia', mi100: '100 miglia', start: 'Partenza', startFinish: 'Partenza e arrivo', finish: 'Arrivo' },
+};
+
 export function words(RUN, F) {
-  const M = RUN.meta, BPM = 'bpm';
-  const kind = M.sport === 1 && M.subSport === 3 ? 'trail' : ({ 1: 'run', 2: 'ride', 11: 'walk', 17: 'hike' })[M.sport] || 'run';
-  const SPORT = { run: 'Run', trail: 'Trail run', ride: 'Ride', walk: 'Walk', hike: 'Hike' }[kind];
+  const M = RUN.meta, R = tr(RUN_WORDS), BPM = R.bpm, PL = lang() === 'pl';
+  const kind = M.sport === 1 && M.subSport === 3 ? 'trail' : ({ 1: 'run', 2: 'ride', 11: 'walk', 17: 'hike' })[M.sport] || 'run', SPORT = tr(SPORTS)[kind];
   const hr = F.START.getHours(), part = hr < 5 ? 4 : hr < 11 ? 0 : hr < 14 ? 1 : hr < 17 ? 2 : hr < 22 ? 3 : 4;
-  const NAME = M.name || `${['Morning', 'Midday', 'Afternoon', 'Evening', 'Night'][part]} ${SPORT.toLowerCase()}`, EVENT = M.event || '';
-  const HIGH = 'Highest point', km = v => `${F.dec(v * 1000 / F.U)} ${F.DU}`;
+  const NAME = M.name || tr(NAMES)(kind, part), EVENT = M.event || '';
+  const HIGH = R.high, km = v => `${F.dec(v * 1000 / F.U)} ${F.DU}`;
   const K = (name, v) => (F.MI ? [name.replace(' km', 'K'), km(v)] : [name, '']), MI = (name, v) => [name, F.MI ? '' : km(v)];
-  const MARK = { hr: 'Max heart rate', '5k': K('5 km', 5), '10k': K('10 km', 10), half: ['Half marathon', km(21.1)], mar: ['Marathon', km(42.2)], '50k': K('50 km', 50), '50mi': MI('50 miles', 80.5), '100k': K('100 km', 100), '100mi': MI('100 miles', 160.9) };
-  return { BPM, SPORT, NAME, EVENT, TITLE: [NAME, EVENT].filter(Boolean).join(' · '), HIGH,
+  const MARK = { hr: R.maxHr, '5k': K('5 km', 5), '10k': K('10 km', 10), half: [R.half, km(21.1)], mar: [R.mar, km(42.2)], '50k': K('50 km', 50),
+    '50mi': MI(R.mi50, 80.5), '100k': K('100 km', 100), '100mi': MI(R.mi100, 160.9) };
+  return { BPM, SPORT, NAME, EVENT, TITLE: [NAME, EVENT].filter(Boolean).join(' · '), HIGH, PL,
     mark: m => (m.k === 'high' ? [`${M.highName || HIGH} · ${F.int(F.ht(M.maxAlt))} ${F.HU}`, M.highName ? HIGH : ''] : m.k === 'hr' ? [`${m.v} ${BPM}`, MARK.hr] : MARK[m.k]),
-    start: 'Start', startFinish: 'Start and finish', finish: 'Finish',
-    ui: { play: 'Play', pause: 'Pause', sound: 'Sound', mute: 'Mute', exportMp4: 'Export MP4', exportVideo: 'Export video', stop: 'Stop', withSound: 'export with sound',
-      map: 'Map', mapOff: 'None', mapTerrain: 'Terrain', mapSatellite: 'Satellite', mapOld: 'Load your run again to lay a map under it.',
-      yours: 'Use your run…', sample: 'Back to the sample', playback: 'Playback', colours: 'Colours', units: 'Units', weather: 'Weather', export: 'Export', run: 'Run', picture: 'Picture', templates: 'All templates', drop: 'drop a .fit or Garmin .zip anywhere',
-      noRecord: 'This browser cannot record the page. Use Chrome or Edge on desktop.', choose: 'Choose “This tab” in the prompt. Keep this tab visible while it records.', cancelled: 'Export cancelled.',
-      noCrop: 'This browser cannot crop to the frame, so the whole tab is recorded.', recording: 'Recording… the file downloads when the film ends.',
-      saved: (file, mb, webm) => `Saved ${file} · ${mb} MB` + (webm ? ' (this browser records WebM, not MP4)' : '') } };
+    start: R.start, startFinish: R.startFinish, finish: R.finish, ui: UI() };
 }
+
+export const UI = () => tr({
+  en: { play: 'Play', pause: 'Pause', sound: 'Sound', mute: 'Mute', exportMp4: 'Export MP4', exportVideo: 'Export video', stop: 'Stop', withSound: 'export with sound',
+    map: 'Map', mapOff: 'None', mapTerrain: 'Terrain', mapSatellite: 'Satellite', mapOld: 'Load your run again to lay a map under it.',
+    yours: 'Use your own run', another: 'Load a different run', sample: 'Show the sample', isSample: 'This is a made-up sample run.',
+    playback: 'Playback', position: 'Position', colours: 'Colours', units: 'Units', metric: 'Metric', imperial: 'Imperial', language: 'Language',
+    weather: 'Weather', temperature: 'Temperature', skies: { clear: 'Clear', cloud: 'Cloudy', rain: 'Rain', snow: 'Snow' },
+    export: 'Export', run: 'Run', picture: 'Picture', templates: 'All templates', drop: 'Or drop a .fit or Garmin .zip anywhere on the page.',
+    noRecord: 'This browser cannot record the page. Use Chrome or Edge on desktop.', choose: 'Choose “This tab” in the prompt. Keep this tab visible while it records.', cancelled: 'Export cancelled.',
+    noCrop: 'This browser cannot crop to the frame, so the whole tab is recorded.', recording: 'Recording… the file downloads when the film ends.',
+    saved: (file, mb, webm) => `Saved ${file} · ${mb} MB` + (webm ? ' (this browser records WebM, not MP4)' : '') },
+  pl: { play: 'Odtwórz', pause: 'Pauza', sound: 'Dźwięk', mute: 'Wycisz', exportMp4: 'Eksportuj MP4', exportVideo: 'Eksportuj wideo', stop: 'Zatrzymaj', withSound: 'eksportuj z dźwiękiem',
+    map: 'Mapa', mapOff: 'Brak', mapTerrain: 'Teren', mapSatellite: 'Satelita', mapOld: 'Wczytaj bieg jeszcze raz, żeby podłożyć pod niego mapę.',
+    yours: 'Użyj własnego biegu', another: 'Wczytaj inny bieg', sample: 'Pokaż przykład', isSample: 'To zmyślony, przykładowy bieg.',
+    playback: 'Odtwarzanie', position: 'Pozycja', colours: 'Kolory', units: 'Jednostki', metric: 'Metryczne', imperial: 'Imperialne', language: 'Język',
+    weather: 'Pogoda', temperature: 'Temperatura', skies: { clear: 'Bezchmurnie', cloud: 'Pochmurno', rain: 'Deszcz', snow: 'Śnieg' },
+    export: 'Eksport', run: 'Bieg', picture: 'Obraz', templates: 'Wszystkie szablony', drop: 'Albo upuść plik .fit lub .zip z Garmina w dowolnym miejscu strony.',
+    noRecord: 'Ta przeglądarka nie nagrywa strony. Użyj Chrome lub Edge na komputerze.', choose: 'Wybierz „Ta karta” w okienku. Nie zasłaniaj karty podczas nagrywania.', cancelled: 'Eksport anulowany.',
+    noCrop: 'Ta przeglądarka nie przycina do kadru, więc nagrywa całą kartę.', recording: 'Nagrywanie… plik pobierze się, gdy film się skończy.',
+    saved: (file, mb, webm) => `Zapisano ${file} · ${mb} MB` + (webm ? ' (ta przeglądarka nagrywa WebM, nie MP4)' : '') },
+  de: { play: 'Abspielen', pause: 'Pause', sound: 'Ton', mute: 'Stumm', exportMp4: 'MP4 exportieren', exportVideo: 'Video exportieren', stop: 'Stopp', withSound: 'mit Ton exportieren',
+    map: 'Karte', mapOff: 'Keine', mapTerrain: 'Gelände', mapSatellite: 'Satellit', mapOld: 'Lade deinen Lauf erneut, um eine Karte darunterzulegen.',
+    yours: 'Eigenen Lauf verwenden', another: 'Anderen Lauf laden', sample: 'Beispiel zeigen', isSample: 'Das ist ein erfundener Beispiellauf.',
+    playback: 'Wiedergabe', position: 'Position', colours: 'Farben', units: 'Einheiten', metric: 'Metrisch', imperial: 'Imperial', language: 'Sprache',
+    weather: 'Wetter', temperature: 'Temperatur', skies: { clear: 'Klar', cloud: 'Bewölkt', rain: 'Regen', snow: 'Schnee' },
+    export: 'Export', run: 'Lauf', picture: 'Bild', templates: 'Alle Vorlagen', drop: 'Oder zieh eine .fit- oder Garmin-.zip-Datei irgendwo auf die Seite.',
+    noRecord: 'Dieser Browser kann die Seite nicht aufnehmen. Nutze Chrome oder Edge am Computer.', choose: 'Wähle im Dialog „Dieser Tab“. Lass den Tab während der Aufnahme sichtbar.', cancelled: 'Export abgebrochen.',
+    noCrop: 'Dieser Browser kann nicht auf den Rahmen zuschneiden, daher wird der ganze Tab aufgenommen.', recording: 'Aufnahme läuft … die Datei wird geladen, wenn der Film endet.',
+    saved: (file, mb, webm) => `${file} gespeichert · ${mb} MB` + (webm ? ' (dieser Browser nimmt WebM auf, kein MP4)' : '') },
+  es: { play: 'Reproducir', pause: 'Pausa', sound: 'Sonido', mute: 'Silenciar', exportMp4: 'Exportar MP4', exportVideo: 'Exportar vídeo', stop: 'Detener', withSound: 'exportar con sonido',
+    map: 'Mapa', mapOff: 'Ninguno', mapTerrain: 'Relieve', mapSatellite: 'Satélite', mapOld: 'Vuelve a cargar tu carrera para poner un mapa debajo.',
+    yours: 'Usar tu carrera', another: 'Cargar otra carrera', sample: 'Ver el ejemplo', isSample: 'Esta es una carrera de ejemplo inventada.',
+    playback: 'Reproducción', position: 'Posición', colours: 'Colores', units: 'Unidades', metric: 'Métrico', imperial: 'Imperial', language: 'Idioma',
+    weather: 'Tiempo', temperature: 'Temperatura', skies: { clear: 'Despejado', cloud: 'Nublado', rain: 'Lluvia', snow: 'Nieve' },
+    export: 'Exportar', run: 'Carrera', picture: 'Imagen', templates: 'Todas las plantillas', drop: 'O suelta un .fit o un .zip de Garmin en cualquier parte de la página.',
+    noRecord: 'Este navegador no puede grabar la página. Usa Chrome o Edge en un ordenador.', choose: 'Elige «Esta pestaña» en el aviso. Mantén la pestaña visible mientras graba.', cancelled: 'Exportación cancelada.',
+    noCrop: 'Este navegador no puede recortar al marco, así que se graba toda la pestaña.', recording: 'Grabando… el archivo se descarga cuando termina la película.',
+    saved: (file, mb, webm) => `Guardado ${file} · ${mb} MB` + (webm ? ' (este navegador graba WebM, no MP4)' : '') },
+  fr: { play: 'Lecture', pause: 'Pause', sound: 'Son', mute: 'Couper le son', exportMp4: 'Exporter en MP4', exportVideo: 'Exporter la vidéo', stop: 'Arrêter', withSound: 'exporter avec le son',
+    map: 'Carte', mapOff: 'Aucune', mapTerrain: 'Relief', mapSatellite: 'Satellite', mapOld: 'Rechargez votre course pour placer une carte dessous.',
+    yours: 'Utiliser votre course', another: 'Charger une autre course', sample: 'Voir l’exemple', isSample: 'Ceci est une course d’exemple inventée.',
+    playback: 'Lecture', position: 'Position', colours: 'Couleurs', units: 'Unités', metric: 'Métrique', imperial: 'Impérial', language: 'Langue',
+    weather: 'Météo', temperature: 'Température', skies: { clear: 'Dégagé', cloud: 'Nuageux', rain: 'Pluie', snow: 'Neige' },
+    export: 'Export', run: 'Course', picture: 'Image', templates: 'Tous les modèles', drop: 'Ou déposez un .fit ou un .zip Garmin n’importe où sur la page.',
+    noRecord: 'Ce navigateur ne peut pas enregistrer la page. Utilisez Chrome ou Edge sur ordinateur.', choose: 'Choisissez « Cet onglet » dans la fenêtre. Gardez l’onglet visible pendant l’enregistrement.', cancelled: 'Export annulé.',
+    noCrop: 'Ce navigateur ne peut pas recadrer sur l’image, tout l’onglet est donc enregistré.', recording: 'Enregistrement… le fichier se télécharge à la fin du film.',
+    saved: (file, mb, webm) => `${file} enregistré · ${mb} Mo` + (webm ? ' (ce navigateur enregistre en WebM, pas en MP4)' : '') },
+  it: { play: 'Riproduci', pause: 'Pausa', sound: 'Audio', mute: 'Muto', exportMp4: 'Esporta MP4', exportVideo: 'Esporta video', stop: 'Ferma', withSound: 'esporta con audio',
+    map: 'Mappa', mapOff: 'Nessuna', mapTerrain: 'Rilievo', mapSatellite: 'Satellite', mapOld: 'Ricarica la tua corsa per metterci sotto una mappa.',
+    yours: 'Usa la tua corsa', another: 'Carica un’altra corsa', sample: 'Mostra l’esempio', isSample: 'Questa è una corsa di esempio inventata.',
+    playback: 'Riproduzione', position: 'Posizione', colours: 'Colori', units: 'Unità', metric: 'Metrico', imperial: 'Imperiale', language: 'Lingua',
+    weather: 'Meteo', temperature: 'Temperatura', skies: { clear: 'Sereno', cloud: 'Nuvoloso', rain: 'Pioggia', snow: 'Neve' },
+    export: 'Esporta', run: 'Corsa', picture: 'Immagine', templates: 'Tutti i modelli', drop: 'Oppure trascina un .fit o uno .zip Garmin in qualsiasi punto della pagina.',
+    noRecord: 'Questo browser non può registrare la pagina. Usa Chrome o Edge su computer.', choose: 'Scegli «Questa scheda» nella finestra. Tieni la scheda visibile durante la registrazione.', cancelled: 'Esportazione annullata.',
+    noCrop: 'Questo browser non può ritagliare sul riquadro, quindi registra tutta la scheda.', recording: 'Registrazione… il file si scarica alla fine del film.',
+    saved: (file, mb, webm) => `Salvato ${file} · ${mb} MB` + (webm ? ' (questo browser registra WebM, non MP4)' : '') },
+});
+export { lang, plural, tr };
 
 const ZONES_DARK = ['#8A9BA8', '#8A9BA8', '#4FA3E0', '#6CC24A', '#F5A623', '#E5484D'], ZONES_LIGHT = ['#9AA7B0', '#9AA7B0', '#2F86C8', '#4FA832', '#E8920C', '#D6353A'];
 /* The five looks are TerraInk themes (terraink-mobile/app/src/data/themes.json): same names, same colours as the map posters. */
@@ -338,7 +426,7 @@ export function transport({ root, tl, total, W, H, chapters = [], frame = () => 
       if (ex.cancelled) { note(UI.cancelled); return; }
       const blob = new Blob(ex.chunks, { type: MIME.split(';')[0] });
       download(blob, FILE);
-      note(UI.saved(FILE, (blob.size / 1048576).toLocaleString(LOC, { maximumFractionDigits: 1 }), EXT === 'webm'));
+      note(UI.saved(FILE, (blob.size / 1048576).toLocaleString(loc(), { maximumFractionDigits: 1 }), EXT === 'webm'));
     };
     st.set({ exporting: true });
     await new Promise(r => setTimeout(r, 700));                        // let the capture settle after the sharing bar appears

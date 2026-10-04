@@ -19,10 +19,26 @@ function draw(root, signal, resume, embed, scope) {
   const F = Kit.fmt(RUN), { hms, pace, int, dec, clock, zone } = F, WD = Kit.words(RUN, F), { BPM } = WD;
   if (!HR) ZC[0] = C.moss;
   const { splits: SPLITS, size: SK } = Kit.splits(RUN, F);
-  const TX =
-      { row: ['Time', 'Pace', 'Heart rate'], nums: ['Distance', 'Time', 'Climb', 'Average pace'], chapters: ['Title', 'Run', 'Numbers', 'End'], elevation: 'ELEVATION',
-        splits: `PACE FOR EACH ${SK === 1 ? '' : SK + ' '}${F.MI ? (SK === 1 ? 'MILE' : 'MILES') : 'KM'}` + (HR ? ' · COLOUR IS HEART-RATE ZONE' : ''),
-        tagline: `${dec(KMS)} ${F.DU} · ${F.dur(DUR)}`, ends: `started ${clock(0)} · finished ${clock(M.wall ?? DUR)}` };
+  const TX = {
+    en: () => ({ row: ['Time', 'Pace', 'Heart rate'], nums: ['Distance', 'Time', 'Climb', 'Average pace'], chapters: ['Title', 'Run', 'Numbers', 'End'], elevation: 'ELEVATION',
+      splits: `PACE FOR EACH ${SK === 1 ? '' : SK + ' '}${F.MI ? (SK === 1 ? 'MILE' : 'MILES') : 'KM'}` + (HR ? ' · COLOUR IS HEART-RATE ZONE' : ''),
+      tagline: `${dec(KMS)} ${F.DU} · ${F.dur(DUR)}`, ends: `started ${clock(0)} · finished ${clock(M.wall ?? DUR)}`, file: 'square' }),
+    pl: () => ({ row: ['Czas', 'Tempo', 'Tętno'], nums: ['Dystans', 'Czas', 'Przewyższenie', 'Średnie tempo'], chapters: ['Tytuł', 'Bieg', 'Liczby', 'Koniec'], elevation: 'WYSOKOŚĆ',
+      splits: (SK === 1 ? `TEMPO NA ${F.MI ? 'KAŻDĄ MILĘ' : 'KAŻDY KM'}` : `TEMPO CO ${SK} ${F.MI ? Kit.plural(SK, { one: 'MILĘ', few: 'MILE', many: 'MIL', other: 'MILI' }) : 'KM'}`) + (HR ? ' · KOLOR TO STREFA TĘTNA' : ''),
+      tagline: `${dec(KMS)} ${F.DU} · ${F.dur(DUR)}`, ends: `start ${clock(0)} · meta ${clock(M.wall ?? DUR)}`, file: 'kwadrat' }),
+    de: () => ({ row: ['Zeit', 'Pace', 'Puls'], nums: ['Distanz', 'Zeit', 'Anstieg', 'Ø Pace'], chapters: ['Titel', 'Lauf', 'Zahlen', 'Ende'], elevation: 'HÖHENPROFIL',
+      splits: `PACE ${SK === 1 ? (F.MI ? 'PRO MEILE' : 'PRO KM') : `ALLE ${SK} ${F.MI ? 'MEILEN' : 'KM'}`}` + (HR ? ' · FARBE IST DIE PULSZONE' : ''),
+      tagline: `${dec(KMS)} ${F.DU} · ${F.dur(DUR)}`, ends: `Start ${clock(0)} · Ziel ${clock(M.wall ?? DUR)}`, file: 'quadrat' }),
+    es: () => ({ row: ['Tiempo', 'Ritmo', 'Pulso'], nums: ['Distancia', 'Tiempo', 'Desnivel', 'Ritmo medio'], chapters: ['Título', 'Carrera', 'Cifras', 'Final'], elevation: 'ALTITUD',
+      splits: `RITMO ${SK === 1 ? (F.MI ? 'POR MILLA' : 'POR KM') : `CADA ${SK} ${F.MI ? 'MILLAS' : 'KM'}`}` + (HR ? ' · EL COLOR ES LA ZONA DE PULSO' : ''),
+      tagline: `${dec(KMS)} ${F.DU} · ${F.dur(DUR)}`, ends: `salida ${clock(0)} · llegada ${clock(M.wall ?? DUR)}`, file: 'cuadrado' }),
+    fr: () => ({ row: ['Temps', 'Allure', 'Fréquence cardiaque'], nums: ['Distance', 'Temps', 'Dénivelé', 'Allure moyenne'], chapters: ['Titre', 'Course', 'Chiffres', 'Fin'], elevation: 'ALTITUDE',
+      splits: `ALLURE ${SK === 1 ? (F.MI ? 'PAR MILE' : 'PAR KM') : `TOUS LES ${SK} ${F.MI ? 'MILES' : 'KM'}`}` + (HR ? ' · COULEUR = ZONE CARDIAQUE' : ''),
+      tagline: `${dec(KMS)} ${F.DU} · ${F.dur(DUR)}`, ends: `départ ${clock(0)} · arrivée ${clock(M.wall ?? DUR)}`, file: 'carre' }),
+    it: () => ({ row: ['Tempo', 'Passo', 'Frequenza cardiaca'], nums: ['Distanza', 'Tempo', 'Dislivello', 'Passo medio'], chapters: ['Titolo', 'Corsa', 'Numeri', 'Fine'], elevation: 'ALTITUDINE',
+      splits: `PASSO ${SK === 1 ? (F.MI ? 'PER MIGLIO' : 'PER KM') : `OGNI ${SK} ${F.MI ? 'MIGLIA' : 'KM'}`}` + (HR ? ' · IL COLORE È LA ZONA CARDIACA' : ''),
+      tagline: `${dec(KMS)} ${F.DU} · ${F.dur(DUR)}`, ends: `partenza ${clock(0)} · arrivo ${clock(M.wall ?? DUR)}`, file: 'quadrato' }),
+  }[Kit.lang()]();
 
   const stage = root.querySelector('#stage'), add = el => (stage.appendChild(el), el);
   const SEGS = []; for (let i = 0, z = zone(T.h[0]), i0 = 0; i <= N; i++) { const zi = i < N ? zone(T.h[i]) : -1; if (zi !== z) { SEGS.push({ i0, i1: Math.min(N - 1, i), z }); i0 = i; z = zi; } }
@@ -61,8 +77,9 @@ function draw(root, signal, resume, embed, scope) {
   const vbars = [...bars.querySelectorAll('.vbar')];
 
   const ui = add(h('div', { id: 'ui', class: `${LAYER} pointer-events-none` })), U = el => ui.appendChild(el);
+  const LONG = Math.max(...WD.NAME.split(' ').map(w => w.length));
   const ti = U(h('div', { id: 'ti', class: `${HIDE} top-[300px] left-[70px] w-[400px]` }, h('div', { class: EYEBROW, text: [F.DAY, M.place, Kit.weatherLine(Kit.skyOf(M, embed), F)].filter(Boolean).join(' · ') }),
-    h('h1', { class: `mt-[22px] font-bold tracking-[-.04em] ${WD.NAME.length > 18 ? 'text-[74px]/[.98]' : 'text-[96px]/[.98]'}` }, ...Kit.wordEls(WD.NAME.split(' '))), h('p', { class: 'mt-[26px] text-[32px]/[1.25] font-normal text-(color:--soft)', text: TX.tagline })));
+    h('h1', { class: `mt-[22px] font-bold tracking-[-.04em] ${WD.NAME.length > 18 ? 'text-[74px]/[.98]' : 'text-[96px]/[.98]'}`, style: LONG > 10 ? `font-size:${Math.floor(720 / LONG)}px` : null }, ...Kit.wordEls(WD.NAME.split(' '))), h('p', { class: 'mt-[26px] text-[32px]/[1.25] font-normal text-(color:--soft)', text: TX.tagline })));
   const head = U(h('div', { id: 'top', class: `${HIDE} top-[90px] left-[70px] w-[400px]` }, h('div', { class: EYEBROW, text: WD.TITLE }),
     h('div', { id: 'dist', class: 'mt-[8px] flex items-baseline gap-[12px]' }, h('b', { id: 'km', class: 'text-[132px]/none font-bold tracking-[-.05em]', text: dec(0) }), h('small', { class: 'text-[40px]/none font-medium text-(color:--soft)', text: F.DU }))));
   const cell = (label, id, unit, extra) => h('div', {}, h('small', { class: 'block text-[17px]/none font-medium tracking-[.14em] text-(color:--soft) uppercase', text: label }),
@@ -169,6 +186,6 @@ function draw(root, signal, resume, embed, scope) {
   function heartbeat(t) { if (!au.ok() || t < REPLAY0 || t > REPLAY0 + REPLAY_D) return;
     if (au.AC.currentTime >= nextBeat) { sfx.beat(); nextBeat = au.AC.currentTime + 120 / Math.max(80, lastHr); } }
 
-  tp = Kit.transport({ root, signal, resume, embed, look: L.key, tl, total: TOTAL, W: 1080, H: 1080, chapters: TX.chapters.map((l, k) => [l, CH[k]]), frame: t => { render(); heartbeat(t); WX.draw(t); }, au, UI: WD.ui, file: WD.NAME + ' square' });
+  tp = Kit.transport({ root, signal, resume, embed, look: L.key, tl, total: TOTAL, W: 1080, H: 1080, chapters: TX.chapters.map((l, k) => [l, CH[k]]), frame: t => { render(); heartbeat(t); WX.draw(t); }, au, UI: WD.ui, file: `${WD.NAME} ${TX.file}` });
   return { destroy: () => { scope.revert(); root.innerHTML = ''; }, controls: { ...tp.controls, weather: Kit.weatherControl(M) } };
 }

@@ -18,9 +18,21 @@ function draw(root, signal, resume, embed, scope) {
   const RUN = Runs.current('story'), M = RUN.meta, T = RUN.track, N = T.x.length, DIST = M.distance, DUR = M.elapsed, KMS = DIST / Kit.unitM(), HR = M.hasHr;
   const F = Kit.fmt(RUN), { hms, pace, int, dec, clock, zone } = F, WD = Kit.words(RUN, F), { BPM } = WD;
   if (!HR) ZC[0] = C.moss;
-  const TX =
-      { row: ['Time', 'Pace', 'Heart rate'], nums: ['Distance', 'Time', 'Climb', 'Average pace', 'Average heart rate'], chapters: ['Title', 'Run', 'Numbers', 'End'], elevation: 'ELEVATION',
-        tagline: `${dec(KMS)} ${F.DU} · ${F.dur(DUR)}`, ends: `started ${clock(0)} · finished ${clock(M.wall ?? DUR)}` };
+  const TX = Kit.tr({
+    en: { row: ['Time', 'Pace', 'Heart rate'], nums: ['Distance', 'Time', 'Climb', 'Average pace', 'Average heart rate'], chapters: ['Title', 'Run', 'Numbers', 'End'], elevation: 'ELEVATION',
+      ends: `started ${clock(0)} · finished ${clock(M.wall ?? DUR)}` },
+    pl: { row: ['Czas', 'Tempo', 'Tętno'], nums: ['Dystans', 'Czas', 'Przewyższenie', 'Średnie tempo', 'Średnie tętno'], chapters: ['Tytuł', 'Bieg', 'Liczby', 'Koniec'], elevation: 'PROFIL WYSOKOŚCI',
+      ends: `start ${clock(0)} · meta ${clock(M.wall ?? DUR)}` },
+    de: { row: ['Zeit', 'Pace', 'Herzfrequenz'], nums: ['Distanz', 'Zeit', 'Anstieg', 'Ø Pace', 'Ø Herzfrequenz'], chapters: ['Titel', 'Lauf', 'Zahlen', 'Ende'], elevation: 'HÖHENPROFIL',
+      ends: `Start ${clock(0)} · Ziel ${clock(M.wall ?? DUR)}` },
+    es: { row: ['Tiempo', 'Ritmo', 'Pulso'], nums: ['Distancia', 'Tiempo', 'Desnivel', 'Ritmo medio', 'Pulso medio'], chapters: ['Título', 'Carrera', 'Cifras', 'Final'], elevation: 'ALTIMETRÍA',
+      ends: `salida ${clock(0)} · llegada ${clock(M.wall ?? DUR)}` },
+    fr: { row: ['Temps', 'Allure', 'Cardio'], nums: ['Distance', 'Temps', 'Dénivelé', 'Allure moyenne', 'FC moyenne'], chapters: ['Titre', 'Course', 'Chiffres', 'Fin'], elevation: 'PROFIL',
+      ends: `départ ${clock(0)} · arrivée ${clock(M.wall ?? DUR)}` },
+    it: { row: ['Tempo', 'Passo', 'Battito'], nums: ['Distanza', 'Tempo', 'Dislivello', 'Passo medio', 'FC media'], chapters: ['Titolo', 'Corsa', 'Numeri', 'Fine'], elevation: 'ALTIMETRIA',
+      ends: `partenza ${clock(0)} · arrivo ${clock(M.wall ?? DUR)}` },
+  });
+  TX.tagline = `${dec(KMS)} ${F.DU} · ${F.dur(DUR)}`;
 
   const stage = root.querySelector('#stage'), add = el => (stage.appendChild(el), el);
   const SEGS = []; for (let i = 0, z = zone(T.h[0]), i0 = 0; i <= N; i++) { const zi = i < N ? zone(T.h[i]) : -1; if (zi !== z) { SEGS.push({ i0, i1: Math.min(N - 1, i), z }); i0 = i; z = zi; } }
