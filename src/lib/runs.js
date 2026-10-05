@@ -57,12 +57,14 @@ export const isSample = () => !read(KEY);
 export const sample = (template = 'film') => structuredClone(SAMPLES[template] || FILM);
 export const opts = () => read(OPTS) || {};
 export const setOpts = o => store()?.setItem(OPTS, JSON.stringify(o));
+// null: the run's own weather; false: none at all
 export const weather = () => read(WX);
-export function setWeather(w) { store()?.setItem(WX, JSON.stringify(w)); dispatchEvent(new Event('garminlook:look')); }
+export function setWeather(w) { store()?.setItem(WX, JSON.stringify(w || false)); dispatchEvent(new Event('garminlook:look')); }
 export function current(template) {
   const mine = read(KEY), run = mine || sample(template), w = weather();
   if (mine) { const o = opts(); if (o.name) mine.meta.name = o.name; if (o.place) mine.meta.place = o.place; }
-  if (w) run.meta.weather = { ...run.meta.weather, ...w };
+  if (w === false) run.meta.weather = null;
+  else if (w) run.meta.weather = { ...run.meta.weather, ...w };
   return run;
 }
 export async function load(file) { const run = build(await open(await file.arrayBuffer())); store()?.setItem(KEY, JSON.stringify(run)); return run; }

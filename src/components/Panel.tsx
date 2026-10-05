@@ -20,7 +20,7 @@ type Common = {
   get: () => State; subscribe: (fn: () => void) => () => void;
   UI: Words; look: string; looks: Record<string, Look>; setLook: (k: string) => void; units: 'km' | 'mi'; setUnits: (u: 'km' | 'mi') => void;
   basemap: 'off' | 'terrain' | 'satellite'; setBasemap: (v: string) => void; canMap: boolean;
-  weather?: { now: Weather | null; set: (w: Weather) => void };
+  weather?: { now: Weather | null; set: (w: Weather | null) => void };
   isSample: boolean; pickRun: () => void; backToSample: () => void;
 };
 export type Controls = Common & ({
@@ -43,11 +43,11 @@ function WeatherControl({ weather, UI, imperial }: { weather: NonNullable<Contro
   const now = weather.now, [temp, setTemp] = useState(now?.temp ?? 12);
   return (
     <Section title={UI.weather}>
-      <ToggleGroup type="single" variant="outline" size="sm" className="w-full" value={skyOf(now)} onValueChange={v => { const s = SKIES.find(x => x.k === v); if (s) weather.set({ ...s.w, temp }); }}>
+      <ToggleGroup type="single" variant="outline" size="sm" className="w-full" value={skyOf(now)} onValueChange={v => { const s = SKIES.find(x => x.k === v); weather.set(s ? { ...s.w, temp } : null); }}>
         {SKIES.map(({ k, Icon }) => <ToggleGroupItem key={k} value={k} aria-label={UI.skies[k]} title={UI.skies[k]} className="flex-1"><Icon /></ToggleGroupItem>)}
       </ToggleGroup>
       <div className="flex items-center gap-3">
-        <Slider aria-label={UI.temperature} min={-10} max={35} step={1} value={[temp]} onValueChange={([v]) => setTemp(v)}
+        <Slider aria-label={UI.temperature} disabled={!now} min={-10} max={35} step={1} value={[temp]} onValueChange={([v]) => setTemp(v)}
           onValueCommit={([v]) => weather.set({ ...(SKIES.find(x => x.k === skyOf(now))?.w ?? SKIES[0].w), temp: v })} />
         <span className="w-12 text-right text-sm text-muted-foreground tabular-nums">{imperial ? `${Math.round(temp * 9 / 5 + 32)}°F` : `${temp}°C`}</span>
       </div>

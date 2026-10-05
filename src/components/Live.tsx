@@ -53,7 +53,7 @@ export default function Live({ template, still, alt = '', at, priority = false, 
     if (!host || (reduced && still)) return;   // the still stays
     const ac = new AbortController(), looks = LOOKS[theme], moving = !STILL.has(template);
     // a visitor's own run, or a sky they picked, keeps its weather
-    const sample = Runs.isSample() && !Runs.weather();
+    const sample = Runs.isSample() && Runs.weather() == null;
     let cur: { el: HTMLDivElement; m: Mounted; ac: AbortController; k: number } | null = null, inView = true, timer: ReturnType<typeof setTimeout> | undefined;
     const time = () => cur?.m.controls.clock?.get() ?? t0.current;
     TEMPLATES[template]().then(mod => {
