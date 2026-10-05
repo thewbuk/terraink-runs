@@ -226,7 +226,8 @@ function draw(root, signal, resume, embed, scope) {
   const iHigh = T.a.indexOf(Math.max(...T.a)), iLow = T.a.indexOf(Math.min(...T.a)), BIG = RUN.climb.up >= 30, iC0 = BIG ? iAt(RUN.climb.d0) : 0, iC1 = BIG ? iAt(RUN.climb.d1) : 0;
   const PEAK = 'M0 150 L58 66 L82 92 L128 8 L160 58 L182 40 L260 150', SNOW = 'M112 38 L122 50 L130 40 L140 52 L146 36', TOWER = 'M66 150 L118 14 L142 14 L194 150 M88 102 H172 M102 64 H158 M130 14 V0';
   const CLOCK = 'M100 150 H160 M110 150 V64 M150 150 V64 M110 108 H150 M104 64 H156 V34 H104 Z M142 49 A12 12 0 1 0 118 49 A12 12 0 1 0 142 49 M130 49 V41 M130 49 L136 53 M110 34 V26 H150 V34 M110 26 L130 0 L150 26';
-  const MARKS = LM ? Math.min(3, Math.max(1, Math.round(lmT))) : 0;
+  // whole landmarks, then the last one cut to the leftover fraction (2.7 → two and most of a third), at most three
+  const FULL = LM ? Math.min(3, Math.floor(lmT + 0.05)) : 0, PART = FULL < 3 && lmT - FULL > 0.05 ? lmT - FULL : 0, MARKS = FULL + (PART ? 1 : 0);
   const pin = (i, dy, size, fill, text) => h('g', { class: 'cpin', opacity: 0 }, h('circle', { cx: CP[i][0], cy: CP[i][1], r: 7, fill: C.ink, stroke: C.paper, 'stroke-width': 3 }),
     h('text', { class: HALO, x: Math.min(1430, Math.max(170, CP[i][0])), y: CP[i][1] + dy, 'text-anchor': 'middle', 'font-size': size, 'font-weight': size > 18 ? 600 : 400, fill, 'stroke-width': 7, text }));
   const climb = art.appendChild(h('g', { id: 'climb', opacity: 0 },
@@ -241,7 +242,8 @@ function draw(root, signal, resume, embed, scope) {
       h('text', { class: HALO, x: CP[iC1][0] - 16, y: CP[iC1][1] - 8, 'text-anchor': 'end', 'font-size': 20, 'font-weight': 600, fill: C.signal, 'stroke-width': 7, text: `${TX.big} · +${int(F.ht(RUN.climb.up))} ${F.HU}` }),
       h('text', { class: HALO, x: CP[iC1][0] - 16, y: CP[iC1][1] + 14, 'text-anchor': 'end', 'font-size': 15, fill: C.soft, 'stroke-width': 7, text: TX.bigSub(dec((RUN.climb.d1 - RUN.climb.d0) / F.U), Math.round(RUN.climb.d0 / F.U)) })) : null,
     h('g', { id: 'lms', transform: `translate(${1530 - MARKS * 190} 96)` },
-      ...Array.from({ length: MARKS }, (_, k) => h('g', { transform: `translate(${k * 190} 0) scale(.68)` }, h('path', { class: 'lm', d: [TOWER, PEAK, CLOCK][LM[3]], fill: 'none', stroke: C.paper, 'stroke-width': 3.4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }),
+      PART ? h('clipPath', { id: 'cLm' }, h('rect', { x: -20, y: 150 * (1 - PART), width: 300, height: 150 * PART + 20 })) : null,
+      ...Array.from({ length: MARKS }, (_, k) => h('g', { transform: `translate(${k * 190} 0) scale(.68)`, 'clip-path': k === FULL && PART ? 'url(#cLm)' : null }, h('path', { class: 'lm', d: [TOWER, PEAK, CLOCK][LM[3]], fill: 'none', stroke: C.paper, 'stroke-width': 3.4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }),
         LM[3] === 1 ? h('path', { class: 'lm', d: SNOW, fill: 'none', stroke: C.paper, 'stroke-width': 2.4, 'stroke-linejoin': 'round' }) : null)),
       h('text', { class: 'lmT', x: MARKS * 95 - 12, y: 146, 'text-anchor': 'middle', 'font-size': 17, fill: C.soft, opacity: 0, text: TX.lmCap }))));
   const cpins = [...climb.querySelectorAll('.cpin')];
